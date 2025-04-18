@@ -1,76 +1,108 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>3D GO – Sua loja de impressão 3D</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D GO - Sua loja de impressão 3D</title>
   <style>
+    /* Estilo Global */
     body {
+      font-family: Arial, sans-serif;
+      background-color: #ffffff; /* Fundo branco */
+      color: #000000; /* Texto preto */
       margin: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background: #f4f4f4;
-      color: #333;
+      padding: 0;
     }
+
+    /* Cabeçalho */
     header {
-      background: #1e88e5;
-      color: white;
-      padding: 1rem;
+      background-color: #ff0000; /* Fundo vermelho */
+      color: #ffffff; /* Texto branco */
+      padding: 20px;
       text-align: center;
     }
-    main {
-      padding: 2rem;
-      max-width: 800px;
-      margin: auto;
+
+    header h1 {
+      margin: 0;
+      font-size: 2.5em;
     }
-    input[type="file"] {
-      margin-bottom: 1rem;
+
+    /* Formulário */
+    .container {
+      padding: 20px;
+      text-align: center;
     }
+
+    .input-file {
+      background-color: #ff0000; /* Botão vermelho */
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 5px;
+      margin: 10px;
+    }
+
+    .input-file:hover {
+      background-color: #cc0000; /* Vermelho escuro no hover */
+    }
+
+    .info {
+      margin-top: 20px;
+      font-size: 1.2em;
+    }
+
+    /* Visualização 3D */
     #preview {
       width: 100%;
       height: 500px;
-      background: #e0e0e0;
-      border: 1px solid #ccc;
-      margin-bottom: 1rem;
+      margin-top: 20px;
+      border: 2px solid #ff0000; /* Borda vermelha ao redor da visualização */
     }
-    .info {
-      margin-bottom: 1rem;
+
+    footer {
+      background-color: #ff0000; /* Fundo vermelho */
+      color: #ffffff; /* Texto branco */
+      text-align: center;
+      padding: 10px;
+      position: absolute;
+      width: 100%;
+      bottom: 0;
     }
-    .info span {
-      font-weight: bold;
-    }
-    button {
-      background: #1e88e5;
-      color: white;
-      border: none;
-      padding: 0.75rem 1.5rem;
-      cursor: pointer;
-      font-size: 1rem;
-    }
-    button:hover {
-      background: #1565c0;
+
+    footer p {
+      margin: 0;
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>3D GO – Sua loja de impressão 3D</h1>
+    <h1>3D GO - Sua Loja de Impressão 3D</h1>
   </header>
-  <main>
-    <input type="file" id="stlFile" accept=".stl" />
+
+  <div class="container">
+    <h2>Carregue seu arquivo STL</h2>
+    <input type="file" id="stlFile" class="input-file" accept=".stl, .3mf">
     <div id="preview"></div>
+
     <div class="info">
       <p>Volume: <span id="volume">0</span> cm³</p>
-      <p>Preço: R$ <span id="price">0.00</span></p>
+      <p>Preço: R$ <span id="price">0</span></p>
     </div>
-    <button id="sendEmail">Enviar Pedido</button>
-  </main>
+  </div>
 
-  <!-- Three.js and STLLoader -->
-  <script type="module">
-    import * as THREE from 'https://unpkg.com/three@0.150.1/build/three.module.js';
-    import { STLLoader } from 'https://unpkg.com/three@0.150.1/examples/jsm/loaders/STLLoader.js';
-    import { OrbitControls } from 'https://unpkg.com/three@0.150.1/examples/jsm/controls/OrbitControls.js';
+  <footer>
+    <p>© 2025 3D GO - Impressão 3D Personalizada</p>
+  </footer>
 
+  <script type="text/javascript" src="https://cdn.emailjs.com/dist/email.min.js"></script>
+
+  <script src="https://unpkg.com/three@0.150.1/build/three.module.js"></script>
+  <script src="https://unpkg.com/three@0.150.1/examples/jsm/loaders/STLLoader.js"></script>
+  <script src="https://unpkg.com/three@0.150.1/examples/jsm/controls/OrbitControls.js"></script>
+
+  <script>
     let scene, camera, renderer, controls, mesh;
 
     function init() {
@@ -119,6 +151,9 @@
         const volume = calculateVolume(geometry);
         document.getElementById('volume').textContent = volume.toFixed(2);
         document.getElementById('price').textContent = (volume * 0.5).toFixed(2);
+
+        // Enviar email com os dados
+        sendEmail(volume, (volume * 0.5).toFixed(2));
       };
       reader.readAsArrayBuffer(file);
     });
@@ -150,32 +185,24 @@
       );
     }
 
-    init();
-  </script>
-
-  <!-- EmailJS -->
-  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
-  <script>
-    (function(){
-      emailjs.init("YOUR_USER_ID"); // Substitua por seu User ID do EmailJS
-    })();
-
-    document.getElementById('sendEmail').addEventListener('click', function () {
-      const volume = document.getElementById('volume').textContent;
-      const price = document.getElementById('price').textContent;
-      const fileInput = document.getElementById('stlFile');
-      const fileName = fileInput.files[0] ? fileInput.files[0].name : 'Nenhum arquivo selecionado';
-
+    // Função para enviar e-mail
+    function sendEmail(volume, price) {
+      emailjs.init("45ZVb6pBbMGwIVhyo"); // Substitua pelo seu User ID do EmailJS
       const templateParams = {
+        to_email: "franciscobraganca2010@gmail.com", // Substitua pelo seu e-mail
         volume: volume,
         price: price,
-        filename: fileName
       };
 
-      emailjs.send('service_utkxrne', 'template_qop6umd', templateParams)
+      emailjs.send("service_utkxrne", "template_959sfoi", templateParams)
         .then(function(response) {
-          alert('Pedido enviado com sucesso!');
+          console.log("Sucesso ao enviar o e-mail:", response);
         }, function(error) {
-          alert('Erro
-::contentReference[oaicite:2]{index=2}
- 
+          console.error("Erro ao enviar o e-mail:", error);
+        });
+    }
+
+    init();
+  </script>
+</body>
+</html>
