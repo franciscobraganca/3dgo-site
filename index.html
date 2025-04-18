@@ -1,113 +1,181 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D GO - Orçamento de Impressão 3D</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/emailjs-com@2.6.4/dist/email.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>3D GO – Sua loja de impressão 3D</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f4f4;
+      color: #333;
+    }
+    header {
+      background: #1e88e5;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    main {
+      padding: 2rem;
+      max-width: 800px;
+      margin: auto;
+    }
+    input[type="file"] {
+      margin-bottom: 1rem;
+    }
+    #preview {
+      width: 100%;
+      height: 500px;
+      background: #e0e0e0;
+      border: 1px solid #ccc;
+      margin-bottom: 1rem;
+    }
+    .info {
+      margin-bottom: 1rem;
+    }
+    .info span {
+      font-weight: bold;
+    }
+    button {
+      background: #1e88e5;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    button:hover {
+      background: #1565c0;
+    }
+  </style>
 </head>
 <body>
-    <h1>3D GO - Sua loja de impressão 3D</h1>
-    
-    <label for="fileInput">Escolha seu arquivo STL:</label>
-    <input type="file" id="fileInput" accept=".stl,.obj,.3mf,.amf">
-    <br><br>
+  <header>
+    <h1>3D GO – Sua loja de impressão 3D</h1>
+  </header>
+  <main>
+    <input type="file" id="stlFile" accept=".stl" />
+    <div id="preview"></div>
+    <div class="info">
+      <p>Volume: <span id="volume">0</span> cm³</p>
+      <p>Preço: R$ <span id="price">0.00</span></p>
+    </div>
+    <button id="sendEmail">Enviar Pedido</button>
+  </main>
 
-    <h3>Preview do Modelo 3D:</h3>
-    <div id="modelPreview" style="width: 500px; height: 500px;"></div>
-    
-    <br>
-    <p>Volume: <span id="volume">0</span> cm³</p>
-    <p>Preço: R$ <span id="price">0.00</span></p>
-    
-    <h3>Informações do Pedido:</h3>
-    <form id="orderForm">
-        <label for="name">Nome:</label>
-        <input type="text" id="name" required><br><br>
-        
-        <label for="email">E-mail:</label>
-        <input type="email" id="email" required><br><br>
-        
-        <label for="message">Descrição:</label>
-        <textarea id="message" rows="4" cols="50" required></textarea><br><br>
+  <!-- Three.js and STLLoader -->
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.150.1/build/three.module.js';
+    import { STLLoader } from 'https://unpkg.com/three@0.150.1/examples/jsm/loaders/STLLoader.js';
+    import { OrbitControls } from 'https://unpkg.com/three@0.150.1/examples/jsm/controls/OrbitControls.js';
 
-        <button type="submit">Enviar Pedido</button>
-    </form>
-    
-    <script>
-        emailjs.init('YOUR_USER_ID'); // Substitua pelo seu User ID do EmailJS
+    let scene, camera, renderer, controls, mesh;
 
-        let scene, camera, renderer, model;
-        let fileInput = document.getElementById('fileInput');
-        let volumeElement = document.getElementById('volume');
-        let priceElement = document.getElementById('price');
-        let pricePerCm3 = 0.50; // R$0,50 por cm³
+    function init() {
+      const container = document.getElementById('preview');
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+      camera.position.set(0, 0, 100);
 
-        function init() {
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer();
-            renderer.setSize(500, 500);
-            document.getElementById('modelPreview').appendChild(renderer.domElement);
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      container.appendChild(renderer.domElement);
 
-            let light = new THREE.AmbientLight(0x404040);
-            scene.add(light);
-            camera.position.z = 5;
-        }
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
 
-        function loadModel(file) {
-            let reader = new FileReader();
-            reader.onload = function(event) {
-                let loader = new THREE.STLLoader();
-                let geometry = loader.parse(event.target.result);
-                let material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-                model = new THREE.Mesh(geometry, material);
-                scene.add(model);
-                calculateVolume(geometry);
-                animate();
-            };
-            reader.readAsArrayBuffer(file);
-        }
+      const light = new THREE.DirectionalLight(0xffffff, 1);
+      light.position.set(0, 0, 100).normalize();
+      scene.add(light);
 
-        function calculateVolume(geometry) {
-            let volume = geometry.computeBoundingBox();
-            let volumeCm3 = volume.max.x * volume.max.y * volume.max.z; // Simples cálculo de volume
-            volumeElement.innerText = volumeCm3.toFixed(2);
-            let price = volumeCm3 * pricePerCm3;
-            priceElement.innerText = price.toFixed(2);
-        }
+      animate();
+    }
 
-        function animate() {
-            requestAnimationFrame(animate);
-            model.rotation.x += 0.01;
-            model.rotation.y += 0.01;
-            renderer.render(scene, camera);
-        }
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
 
-        fileInput.addEventListener('change', function() {
-            loadModel(fileInput.files[0]);
-        });
+    document.getElementById('stlFile').addEventListener('change', function (event) {
+      const file = event.target.files[0];
+      if (!file) return;
 
-        document.getElementById('orderForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            let formData = {
-                name: document.getElementById('name').value,
-                email: document.getElementById('email').value,
-                message: document.getElementById('message').value,
-                file_link: URL.createObjectURL(fileInput.files[0]) // Link do arquivo STL
-            };
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const loader = new STLLoader();
+        const geometry = loader.parse(e.target.result);
+        geometry.center();
 
-            emailjs.send('service_utkxrne', 'template_l2rlwol', formData)
-                .then(function(response) {
-                    alert('Pedido enviado com sucesso!');
-                }, function(error) {
-                    alert('Erro ao enviar pedido: ' + error);
-                });
-        });
+        const material = new THREE.MeshStandardMaterial({ color: 0x2194ce });
+        if (mesh) scene.remove(mesh);
+        mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
 
-        init();
-    </script>
-</body>
-</html>
+        // Calcular volume
+        const volume = calculateVolume(geometry);
+        document.getElementById('volume').textContent = volume.toFixed(2);
+        document.getElementById('price').textContent = (volume * 0.5).toFixed(2);
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    function calculateVolume(geometry) {
+      let position = geometry.attributes.position;
+      let sum = 0;
+      for (let i = 0; i < position.count; i += 3) {
+        const ax = position.getX(i);
+        const ay = position.getY(i);
+        const az = position.getZ(i);
+        const bx = position.getX(i + 1);
+        const by = position.getY(i + 1);
+        const bz = position.getZ(i + 1);
+        const cx = position.getX(i + 2);
+        const cy = position.getY(i + 2);
+        const cz = position.getZ(i + 2);
+
+        sum += signedVolumeOfTriangle(ax, ay, az, bx, by, bz, cx, cy, cz);
+      }
+      return Math.abs(sum) / 1000; // Convert mm³ to cm³
+    }
+
+    function signedVolumeOfTriangle(ax, ay, az, bx, by, bz, cx, cy, cz) {
+      return (1.0 / 6.0) * (
+        ax * (by * cz - bz * cy) -
+        ay * (bx * cz - bz * cx) +
+        az * (bx * cy - by * cx)
+      );
+    }
+
+    init();
+  </script>
+
+  <!-- EmailJS -->
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script>
+    (function(){
+      emailjs.init("YOUR_USER_ID"); // Substitua por seu User ID do EmailJS
+    })();
+
+    document.getElementById('sendEmail').addEventListener('click', function () {
+      const volume = document.getElementById('volume').textContent;
+      const price = document.getElementById('price').textContent;
+      const fileInput = document.getElementById('stlFile');
+      const fileName = fileInput.files[0] ? fileInput.files[0].name : 'Nenhum arquivo selecionado';
+
+      const templateParams = {
+        volume: volume,
+        price: price,
+        filename: fileName
+      };
+
+      emailjs.send('service_utkxrne', 'template_qop6umd', templateParams)
+        .then(function(response) {
+          alert('Pedido enviado com sucesso!');
+        }, function(error) {
+          alert('Erro
+::contentReference[oaicite:2]{index=2}
+ 
