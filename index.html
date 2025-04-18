@@ -62,11 +62,13 @@
     <p><strong>Volume calculado:</strong> <span id="volume">0</span> cm³</p>
     <p><strong>Preço estimado:</strong> R$ <span id="price">0.00</span></p>
 
+    <!-- Imagem do QR Code Pix mantida -->
     <div class="qr-code">
       <img id="pixQr" alt="QR Code Pix" />
-      <p><strong>Nome do recebedor:</strong> Francisco Marques Rodrigues Bragança</p>
-      <p><strong>Chave Pix:</strong> 28999200512</p>
     </div>
+
+    <p><strong>Nome do recebedor:</strong> Francisco Marques Rodrigues Bragança</p>
+    <p><strong>Chave Pix:</strong> 28999200512</p>
 
     <form id="pedidoForm">
       <input type="text" name="nome" placeholder="Seu nome" required />
@@ -123,8 +125,8 @@
 
         geometry.computeBoundingBox();
         const { x, y, z } = geometry.boundingBox.max.sub(geometry.boundingBox.min);
-        const volume = ((x * y * z) / 1000).toFixed(2);
-        const price = (volume * 0.10).toFixed(2);
+        const volume = ((x * y * z) / 1000).toFixed(2); // volume em cm³
+        const price = (volume * 0.10).toFixed(2); // preço R$ 0,10 por cm³
 
         document.getElementById('volume').textContent = volume;
         document.getElementById('price').textContent = price;
@@ -133,6 +135,7 @@
         const payload = {
           pix: {
             chave: "28999200512",
+            cidade: "Jerônimo Monteiro",
             nome: "Francisco Marques Rodrigues Bragança",
             valor: price,
             info: "Pedido 3D GO"
@@ -172,3 +175,4 @@
   </script>
 </body>
 </html>
+
