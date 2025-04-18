@@ -124,7 +124,7 @@
         geometry.computeBoundingBox();
         const { x, y, z } = geometry.boundingBox.max.sub(geometry.boundingBox.min);
         const volume = ((x * y * z) / 1000).toFixed(2);
-        const price = (volume * 0.5).toFixed(2);
+        const price = (volume * 0.10).toFixed(2);
 
         document.getElementById('volume').textContent = volume;
         document.getElementById('price').textContent = price;
