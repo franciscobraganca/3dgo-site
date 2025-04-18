@@ -20,7 +20,7 @@
     }
     main {
       padding: 2rem;
-      max-width: 800px;
+      max-width: 900px;
       margin: auto;
     }
     label {
@@ -34,7 +34,7 @@
       border: 1px solid #ccc;
       border-radius: 5px;
     }
-    #preview {
+    #previewContainer {
       width: 100%;
       height: 400px;
       border: 1px solid #ccc;
@@ -43,6 +43,7 @@
     .qr {
       margin-top: 1.5rem;
       text-align: center;
+      display: none;
     }
     .qr canvas {
       max-width: 250px;
@@ -57,7 +58,7 @@
     <label for="stlFile">Envie seu arquivo STL</label>
     <input type="file" id="stlFile" accept=".stl" />
 
-    <div id="preview"></div>
+    <div id="previewContainer"></div>
 
     <p id="volumeDisplay"></p>
     <p id="priceDisplay"></p>
@@ -71,30 +72,37 @@
     <label for="endereco">Endereço para envio</label>
     <textarea id="endereco" rows="3" required></textarea>
 
-    <div class="qr">
-      <h3>Pagamento via Pix</h3>
-      <div id="qrcode"></div>
-    </div>
-
     <label for="comprovante">Envie o comprovante do Pix</label>
     <input type="file" id="comprovante" accept="image/*" required />
+
+    <button onclick="enviarPedido()">Enviar Pedido</button>
+
+    <div class="qr" id="qrSection">
+      <h3>Pagamento via Pix</h3>
+      <canvas id="qrcode"></canvas>
+    </div>
   </main>
 
-  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/STLLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
   <script>
     emailjs.init("45ZVb6pBbMGwIVhyo");
 
-    const container = document.getElementById("preview");
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    container.appendChild(renderer.domElement);
+    let precoFinal = 0;
+
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, container.clientWidth / 400, 0.1, 1000);
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
     camera.position.z = 100;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const previewContainer = document.getElementById("previewContainer");
+    previewContainer.appendChild(renderer.domElement);
+    renderer.setSize(previewContainer.clientWidth, previewContainer.clientHeight);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
     const light = new THREE.DirectionalLight(0xffffff, 1);
     light.position.set(1, 1, 1).normalize();
     scene.add(light);
@@ -102,7 +110,6 @@
     function animate() {
       requestAnimationFrame(animate);
       controls.update();
-      renderer.setSize(container.clientWidth, 400);
       renderer.render(scene, camera);
     }
     animate();
@@ -115,53 +122,52 @@
       reader.onload = function (event) {
         const loader = new THREE.STLLoader();
         const geometry = loader.parse(event.target.result);
-
-        let volume = 0;
         geometry.computeVertexNormals();
-        const posAttr = geometry.getAttribute("position");
 
-        for (let i = 0; i < posAttr.count; i += 3) {
-          const a = new THREE.Vector3().fromBufferAttribute(posAttr, i);
-          const b = new THREE.Vector3().fromBufferAttribute(posAttr, i + 1);
-          const c = new THREE.Vector3().fromBufferAttribute(posAttr, i + 2);
-          volume += signedVolumeOfTriangle(a, b, c);
-        }
-        volume = Math.abs(volume);
-        const preco = volume * 0.10;
-
-        document.getElementById("volumeDisplay").innerText = `Volume real: ${volume.toFixed(2)} cm³`;
-        document.getElementById("priceDisplay").innerText = `Preço estimado: R$ ${preco.toFixed(2)}`;
-
-        const material = new THREE.MeshNormalMaterial();
-        const mesh = new THREE.Mesh(geometry, material);
+        const mesh = new THREE.Mesh(geometry, new THREE.MeshNormalMaterial());
         scene.clear();
         scene.add(mesh);
         scene.add(light);
 
-        generatePix(preco.toFixed(2));
+        const volume = calcularVolume(geometry);
+        precoFinal = volume * 0.10; // R$0,10 por cm³
+
+        document.getElementById("volumeDisplay").innerText = `Volume real: ${volume.toFixed(2)} cm³`;
+        document.getElementById("priceDisplay").innerText = `Preço estimado: R$ ${precoFinal.toFixed(2)}`;
       };
       reader.readAsArrayBuffer(file);
     });
 
+    function calcularVolume(geometry) {
+      let volume = 0;
+      const position = geometry.attributes.position;
+      for (let i = 0; i < position.count; i += 3) {
+        const ax = position.getX(i), ay = position.getY(i), az = position.getZ(i);
+        const bx = position.getX(i+1), by = position.getY(i+1), bz = position.getZ(i+1);
+        const cx = position.getX(i+2), cy = position.getY(i+2), cz = position.getZ(i+2);
+        volume += signedVolumeOfTriangle({x: ax, y: ay, z: az}, {x: bx, y: by, z: bz}, {x: cx, y: cy, z: cz});
+      }
+      return Math.abs(volume) / 1000; // convertendo mm³ para cm³
+    }
+
     function signedVolumeOfTriangle(p1, p2, p3) {
-      return p1.dot(p2.clone().cross(p3)) / 6.0;
+      return (1.0 / 6.0) * (
+        p1.x * (p2.y * p3.z - p2.z * p3.y) -
+        p1.y * (p2.x * p3.z - p2.z * p3.x) +
+        p1.z * (p2.x * p3.y - p2.y * p3.x)
+      );
     }
 
-    function generatePix(valor) {
-      const chave = "28999200512";
-      const nome = "Francisco Marques Rodrigues Bragança";
-      const cidade = "Jerônimo Monteiro";
-      const txt = `00020126580014BR.GOV.BCB.PIX0111${chave}5204000053039865405${valor}5802BR5919${nome}6009${cidade}62100506LOJA3D6304`;
-      QRCode.toCanvas(document.getElementById("qrcode"), txt, err => {
-        if (err) console.error(err);
-      });
-    }
-
-    document.getElementById("comprovante").addEventListener("change", function () {
+    function enviarPedido() {
       const nome = document.getElementById("nome").value;
       const email = document.getElementById("email").value;
       const endereco = document.getElementById("endereco").value;
       const arquivo = document.getElementById("stlFile").files[0]?.name || "";
+
+      if (!nome || !email || !endereco || !arquivo) {
+        alert("Preencha todos os campos e envie o arquivo STL antes de enviar o pedido.");
+        return;
+      }
 
       emailjs.send("service_utkxrne", "template_959sfoi", {
         nome,
@@ -169,13 +175,21 @@
         endereco,
         arquivo
       }).then(() => {
-        alert("Pedido enviado com sucesso!");
+        document.getElementById("qrSection").style.display = "block";
+        gerarPix(precoFinal.toFixed(2));
+        alert("Pedido enviado com sucesso! Veja abaixo os dados para pagamento.");
       }, (error) => {
         console.error("Erro ao enviar:", error);
         alert("Erro ao enviar pedido.");
       });
-    });
+    }
+
+    function gerarPix(valor) {
+      const payload = `00020126360014BR.GOV.BCB.PIX01112899920051252040014Francisco Marques Rodrigues Bragança5204000053039865405${valor}5802BR5919Francisco Marques Rodrigues Bragança6009Jerônimo62100506Loja 3D6304`;
+      QRCode.toCanvas(document.getElementById("qrcode"), payload, err => {
+        if (err) console.error(err);
+      });
+    }
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/controls/OrbitControls.js"></script>
 </body>
 </html>
